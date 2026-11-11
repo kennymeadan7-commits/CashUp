@@ -1,0 +1,300 @@
+// Schéma de données Cashup — référence de production (PostgreSQL).
+//
+// En local, `npm run dev` / `npm run build` génèrent automatiquement
+// `prisma/schema.sqlite.prisma` à partir de ce fichier pour utiliser SQLite
+// sans installation supplémentaire (voir scripts/make-sqlite-schema.mjs).
+//
+// Production : `prisma migrate deploy` applique les migrations PostgreSQL.
+//
+// Flux métier :
+//   achat déclaré (PENDING) ──(admin valide)──▶ APPROVED + crédit portefeuille
+//   achat déclaré (PENDING) ──(admin refuse)──▶ REJECTED (motif)
+//   retrait demandé (PENDING) ──(admin paie)──▶ PAID + débit portefeuille
+//   retrait demandé (PENDING) ──(admin rejette)──▶ REJECTED (fonds débloqués)
+//
+// Modèle économique (business plan) :
+//   chaque achat validé génère une commission (10–30 % selon la boutique)
+//   répartie 50 % revenu CashUp / 20 % frais de transaction / 30 % points
+//   de fidélité versés au membre, convertibles en bons d'achat.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String
+  city         String
+  passwordHash String
+  role         String   @default("MEMBER") // MEMBER | ADMIN
+  suspended    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  sessions             Session[]
+  purchases            Purchase[]
+  purchasesReviewed    Purchase[]           @relation("PurchaseReviewed")
+  withdrawals          Withdrawal[]
+  withdrawalsProcessed Withdrawal[]         @relation("WithdrawalProcessed")
+  transactions         WalletTransaction[]
+  pointTransactions    PointTransaction[]
+  vouchers             Voucher[]
+  notifications        Notification[]
+  paymentRequests      PaymentRequest[]      @relation("PaymentRequested")
+  confirmedPayments    PaymentRequest[]      @relation("PaymentConfirmed")
+
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Boutique partenaire proposant du cashback.
+// category est un slug défini dans src/lib/constants.ts (CATEGORIES).
+model Store {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  code          String?  @unique // code marchand saisi lors d'un paiement (4 chiffres)
+  description   String
+  category      String // slug de catégorie
+  city          String? // null = vente en ligne / national
+  address       String?
+  website       String?
+  phone         String?
+  cashbackType  String   @default("PERCENT") // PERCENT | FIXED
+  cashbackRate  Float    @default(0) // taux en % (type PERCENT)
+  cashbackFixed Int? // montant en FCFA par achat (type FIXED)
+  commissionRate Float  @default(20) // commission partenaire en % (10 à 30, selon le secteur)
+  color         String   @default("#4348d8") // couleur du pavé logo
+  featured      Boolean  @default(false)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  offers           Offer[]
+  purchases        Purchase[]
+  paymentRequests  PaymentRequest[]
+
+  @@index([category])
+  @@index([active])
+}
+
+// Offre à durée limitée : taux de cashback boosté pendant une période.
+model Offer {
+  id            String   @id @default(cuid())
+  storeId       String
+  title         String
+  description   String?
+  cashbackType  String   @default("PERCENT") // PERCENT | FIXED
+  cashbackRate  Float? // taux en %
+  cashbackFixed Int? // montant en FCFA
+  startsAt      DateTime
+  endsAt        DateTime?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  purchases Purchase[]
+
+  @@index([storeId, active])
+}
+
+// Achat déclaré par un membre, validé par un administrateur.
+model Purchase {
+  id            String    @id @default(cuid())
+  userId        String
+  storeId       String
+  offerId       String?
+  amount        Int // montant dépensé en FCFA
+  cashback      Int // cashback calculé au moment de la déclaration
+  receiptRef    String // référence du reçu / ticket de caisse
+  purchasedAt   DateTime
+  note          String?
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  adminNote     String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  // Commission partenaire, remplie à l'approbation (répartition 50/20/30).
+  commissionRate Float? // taux appliqué, en %
+  commission     Int?    // commission totale en FCFA
+  cashUpShare    Int?    // 50 % — revenu CashUp
+  feeShare       Int?    // 20 % — frais de transaction
+  pointsShare    Int?    // 30 % — points de fidélité versés au membre
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store      Store    @relation(fields: [storeId], references: [id])
+  offer      Offer?   @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  reviewedBy User?    @relation("PurchaseReviewed", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  walletTransaction  WalletTransaction?
+  pointTransaction   PointTransaction?
+
+  @@index([userId])
+  @@index([storeId])
+  @@index([status, createdAt])
+}
+
+// Demande de retrait des gains vers Mobile Money (MTN / Moov / Celtiis).
+model Withdrawal {
+  id            String    @id @default(cuid())
+  userId        String
+  amount        Int // montant en FCFA
+  method        String // MTN_MONEY | MOOV_MONEY | CELTIIS_CASH
+  phone         String // numéro Mobile Money bénéficiaire
+  status        String    @default("PENDING") // PENDING | PAID | REJECTED
+  adminNote     String?
+  processedById String?
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  processedBy User? @relation("WithdrawalProcessed", fields: [processedById], references: [id], onDelete: SetNull)
+
+  walletTransaction WalletTransaction?
+
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+// Écriture au portefeuille : crédit (cashback validé) ou débit (retrait payé).
+// Le solde = crédits confirmés − débits confirmés.
+model WalletTransaction {
+  id           String   @id @default(cuid())
+  userId       String
+  kind         String // CREDIT | DEBIT
+  amount       Int // toujours positif
+  label        String
+  purchaseId   String?  @unique
+  withdrawalId String?  @unique
+  paymentRequestId String? @unique // débit/crédit d'un paiement Cashup
+  createdAt    DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchase   Purchase?   @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  withdrawal Withdrawal? @relation(fields: [withdrawalId], references: [id], onDelete: SetNull)
+  payment    PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+// Paiement initié par un membre chez un partenaire (parcours « Payer ») :
+// le commerçant confirme la réception, le cashback est crédité instantanément.
+model PaymentRequest {
+  id            String    @id @default(cuid())
+  code          String    @unique // référence affichée (ex. PAY-4821)
+  userId        String // membre qui paie
+  storeId       String
+  amount        Int // montant en FCFA
+  mode          String // CASH (espèces) | WALLET (solde Cashup) | POINTS (points)
+  status        String    @default("PENDING") // PENDING | CONFIRMED | CANCELLED
+  confirmedById String?
+  confirmedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user        User       @relation("PaymentRequested", fields: [userId], references: [id], onDelete: Cascade)
+  store       Store      @relation(fields: [storeId], references: [id])
+  confirmedBy User?      @relation("PaymentConfirmed", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  walletTransaction WalletTransaction?
+  pointTransaction  PointTransaction?
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+// Écriture au compteur de points de fidélité : 30 % de la commission de
+// l'achat validé (EARN) ou conversion en bon d'achat (SPEND).
+// 1 point = 1 FCFA (voir src/lib/constants.ts).
+model PointTransaction {
+  id         String   @id @default(cuid())
+  userId     String
+  kind       String // EARN | SPEND
+  amount     Int // toujours positif
+  label      String
+  purchaseId String?  @unique // au plus une écriture EARN par achat
+  voucherId  String?  @unique // au plus une écriture SPEND par bon
+  paymentRequestId String? @unique // paiement réglé en points
+  createdAt  DateTime @default(now())
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchase Purchase?       @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  voucher  Voucher?        @relation(fields: [voucherId], references: [id], onDelete: SetNull)
+  payment  PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+// Bon d'achat obtenu en convertissant des points chez un partenaire.
+model Voucher {
+  id         String    @id @default(cuid())
+  userId     String
+  code       String    @unique // code présenté chez le commerçant
+  pointsCost Int // points consommés
+  value      Int // valeur en FCFA (1 point = 1 FCFA)
+  status     String    @default("ACTIVE") // ACTIVE | USED
+  createdAt  DateTime  @default(now())
+  usedAt     DateTime?
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pointTransactions PointTransaction[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Notification affichée dans l'espace membre (cloche + page dédiée).
+// Chaque notification peut déclencher un e-mail / un SMS via MessageOutbox.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  kind      String // WELCOME | PURCHASE_APPROVED | PURCHASE_REJECTED | WITHDRAWAL_RECEIVED | WITHDRAWAL_PAID | WITHDRAWAL_REJECTED | POINTS_CONVERTED | VOUCHER_USED
+  title     String
+  body      String
+  href      String? // lien interne (ex. /tableau-de-bord/points)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+// Boîte d'envoi e-mail / SMS : chaque message est écrit ici avant d'être
+// remis au fournisseur configuré (RESEND_API_KEY, BREVO_API_KEY, TWILIO_*).
+// Sans fournisseur, le message reste QUEUED et reste consultable en admin.
+model MessageOutbox {
+  id        String    @id @default(cuid())
+  channel   String // EMAIL | SMS
+  to        String // adresse e-mail ou numéro Mobile Money
+  subject   String? // e-mail uniquement
+  body      String // corps du message (texte simple)
+  userId    String? // destinataire interne, si connu
+  status    String    @default("QUEUED") // QUEUED | SENT | FAILED
+  error     String? // dernier échec remonté par le fournisseur
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([channel, status])
+  @@index([createdAt])
+}

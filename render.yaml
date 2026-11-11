@@ -1,0 +1,39 @@
+# Blueprint Render : un clic crée le site + la base PostgreSQL.
+#
+#   Render → New → Blueprint → dépôt GitHub « cashup »
+#
+# - Web gratuit (512 Mo) : mise en veille après 15 min d'inactivité
+#   (~1 min de réveil) — acceptable pour une démo, pas pour la production.
+# - Postgres gratuit : 1 Go, expire 30 jours après création (rallongeable
+#   en payant avant expiration).
+# - La base est alimentée par DATABASE_URL, injectée automatiquement.
+
+services:
+  - type: web
+    name: cashup
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install && npx prisma db push --skip-generate && npm run build:prod
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cashup-db
+          property: connectionString
+      # URL publique réelle : à ajuster si Render attribue un autre sous-domaine
+      # (cashup.onrender.com est pris → cashup-xxxx.onrender.com), puis
+      # redéployer. Sert aux QR codes et aux liens absolus.
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://cashup.onrender.com
+      # Build sur instance gratuite (512 Mo) : limiter la heap de Node.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=448
+
+databases:
+  - name: cashup-db
+    plan: free
+    region: frankfurt
+    databaseName: cashup
+    user: cashup
