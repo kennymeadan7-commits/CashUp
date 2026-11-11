@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { PageHeader, SectionHeading } from "@/components/ui";
 import { MIN_WITHDRAWAL } from "@/lib/constants";
+import { CONTACT } from "@/lib/contact";
 import { formatFCFA } from "@/lib/format";
 
 export const metadata: Metadata = {
@@ -179,8 +180,11 @@ export default function HowItWorksPage() {
           <h2 className="section-title">Questions fréquentes</h2>
           <p className="mt-3 text-sm leading-relaxed text-ink-muted">
             Une question qui n&apos;est pas ici ? Écrivez-nous à{" "}
-            <a href="mailto:bonjour@cashup.bj" className="font-semibold text-brand-700 hover:underline">
-              bonjour@cashup.bj
+            <a
+              href={`mailto:${CONTACT.email}`}
+              className="font-semibold text-brand-700 hover:underline"
+            >
+              {CONTACT.email}
             </a>{" "}
             : nous répondons sous 24 h.
           </p>

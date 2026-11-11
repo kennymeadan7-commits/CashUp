@@ -3,6 +3,7 @@ import { BadgeCheck, Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { Flash, PageHeader } from "@/components/ui";
 import { formatDate, formatPhone } from "@/lib/format";
+import { CONTACT } from "@/lib/contact";
 import { ProfileForm } from "@/components/dashboard/ProfileForm";
 import { PasswordForm } from "@/components/dashboard/PasswordForm";
 
@@ -74,7 +75,11 @@ export default async function ProfilePage({ searchParams }: { searchParams: Sear
               </li>
               <li className="flex gap-2.5">
                 <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-acid-500" aria-hidden="true" />
-                Pour supprimer votre compte ou vos données, écrivez à bonjour@cashup.bj.
+                Pour supprimer votre compte ou vos données, écrivez à{" "}
+                <a href={`mailto:${CONTACT.email}`} className="font-semibold text-brand-700 hover:underline">
+                  {CONTACT.email}
+                </a>
+                .
               </li>
             </ul>
           </div>
@@ -84,17 +89,22 @@ export default async function ProfilePage({ searchParams }: { searchParams: Sear
             <ul className="mt-4 space-y-3 text-sm text-ink-muted">
               <li className="flex items-center gap-2.5">
                 <Mail className="size-4 shrink-0 text-brand-600" strokeWidth={1.9} aria-hidden="true" />
-                <a href="mailto:bonjour@cashup.bj" className="font-semibold text-brand-700 hover:underline">
-                  bonjour@cashup.bj
+                <a
+                  href={`mailto:${CONTACT.email}`}
+                  className="truncate font-semibold text-brand-700 hover:underline"
+                >
+                  {CONTACT.email}
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="size-4 shrink-0 text-brand-600" strokeWidth={1.9} aria-hidden="true" />
-                <span className="tabular-nums">{formatPhone("+22990000000")}</span>
+                <a href={CONTACT.phoneHref} className="tabular-nums hover:underline">
+                  {formatPhone(CONTACT.phoneE164)}
+                </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <MapPin className="size-4 shrink-0 text-brand-600" strokeWidth={1.9} aria-hidden="true" />
-                Cotonou, Bénin
+                {CONTACT.city}
               </li>
             </ul>
           </div>

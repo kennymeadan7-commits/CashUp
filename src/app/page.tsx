@@ -25,6 +25,7 @@ import { prisma } from "@/lib/db";
 import { StoreCard } from "@/components/StoreCard";
 import { SectionHeading, Stat } from "@/components/ui";
 import { CATEGORIES } from "@/lib/constants";
+import { CONTACT } from "@/lib/contact";
 import { formatFCFA, formatNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -42,12 +43,6 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   automobile: Car,
   sport: Dumbbell,
   education: GraduationCap,
-};
-
-const CONTACT = {
-  phone: "41 47 62 94",
-  phoneHref: "tel:+22941476294",
-  email: "precieuxyovogan1@gmail.com",
 };
 
 const STEPS = [
@@ -358,7 +353,7 @@ export default async function HomePage() {
                   Téléphone
                 </span>
                 <span className="mt-1 block truncate text-base font-bold text-ink">
-                  {CONTACT.phone}
+                  {CONTACT.phoneDisplay}
                 </span>
                 <span className="mt-0.5 block text-sm text-ink-muted">
                   Du lundi au samedi, 8 h – 19 h

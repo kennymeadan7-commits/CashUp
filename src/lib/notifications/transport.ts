@@ -11,6 +11,7 @@
 // ne casse (mode démonstration / développement hors ligne).
 
 import { prisma } from "@/lib/db";
+import { CONTACT } from "@/lib/contact";
 
 export type Channel = "EMAIL" | "SMS";
 
@@ -25,7 +26,7 @@ export type MessageInput = {
 const REQUEST_TIMEOUT_MS = 8_000;
 
 function emailFrom(): string {
-  return process.env.EMAIL_FROM ?? "Cashup <bonjour@cashup.bj>";
+  return process.env.EMAIL_FROM ?? `Cashup <${CONTACT.email}>`;
 }
 
 function providerFor(channel: Channel): string | null {

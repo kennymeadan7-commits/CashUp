@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { CATEGORIES, CITIES, WITHDRAWAL_METHODS } from "@/lib/constants";
+import { CONTACT } from "@/lib/contact";
 
 export function SiteFooter() {
   return (
@@ -72,16 +73,16 @@ export function SiteFooter() {
               un retrait ?
             </p>
             <a
-              href="mailto:bonjour@cashup.bj"
+              href={`mailto:${CONTACT.email}`}
               className="mt-2 flex items-center gap-2 text-sm font-semibold text-white hover:underline"
             >
-              <Mail className="size-3.5 text-brand-200" aria-hidden="true" /> bonjour@cashup.bj
+              <Mail className="size-3.5 text-brand-200" aria-hidden="true" /> {CONTACT.email}
             </a>
             <a
-              href="tel:+22990000000"
+              href={CONTACT.phoneHref}
               className="mt-1 flex items-center gap-2 text-sm text-brand-100/80 hover:text-white"
             >
-              <Phone className="size-3.5 text-brand-200" aria-hidden="true" /> +229 90 00 00 00
+              <Phone className="size-3.5 text-brand-200" aria-hidden="true" /> {CONTACT.phoneDisplay}
             </a>
           </div>
           <p className="mt-4 text-xs leading-relaxed text-brand-100/60">
