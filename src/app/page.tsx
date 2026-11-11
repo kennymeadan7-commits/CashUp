@@ -7,7 +7,10 @@ import {
   Dumbbell,
   GraduationCap,
   HeartPulse,
+  Mail,
+  MapPin,
   Plane,
+  Phone,
   Receipt,
   Shirt,
   ShoppingBasket,
@@ -39,6 +42,12 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   automobile: Car,
   sport: Dumbbell,
   education: GraduationCap,
+};
+
+const CONTACT = {
+  phone: "41 47 62 94",
+  phoneHref: "tel:+22941476294",
+  email: "precieuxyovogan1@gmail.com",
 };
 
 const STEPS = [
@@ -327,6 +336,60 @@ export default async function HomePage() {
           hint="Inscription gratuite, retrait dès 5 000 FCFA"
           icon={<CheckCircle2 className="size-4.5" strokeWidth={1.9} />}
         />
+      </section>
+      {/* Contact */}
+      <section className="bg-cloud-100/70 py-14 sm:py-20">
+        <div className="container-page">
+          <SectionHeading
+            eyebrow="Une question ?"
+            title="Contactez-nous"
+            description="Une question sur votre cashback, un partenariat ou la démonstration ? Écrivez-nous, nous répondons rapidement."
+          />
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:max-w-3xl">
+            <a
+              href={CONTACT.phoneHref}
+              className="card card-hover flex items-start gap-4"
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset">
+                <Phone className="size-5" strokeWidth={1.9} aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[11px] font-bold tracking-[0.14em] text-ink-muted uppercase">
+                  Téléphone
+                </span>
+                <span className="mt-1 block truncate text-base font-bold text-ink">
+                  {CONTACT.phone}
+                </span>
+                <span className="mt-0.5 block text-sm text-ink-muted">
+                  Du lundi au samedi, 8 h – 19 h
+                </span>
+              </span>
+            </a>
+            <a
+              href={`mailto:${CONTACT.email}`}
+              className="card card-hover flex items-start gap-4"
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset">
+                <Mail className="size-5" strokeWidth={1.9} aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[11px] font-bold tracking-[0.14em] text-ink-muted uppercase">
+                  E-mail
+                </span>
+                <span className="mt-1 block truncate text-base font-bold text-ink">
+                  {CONTACT.email}
+                </span>
+                <span className="mt-0.5 block text-sm text-ink-muted">
+                  Réponse sous 24 h ouvrées
+                </span>
+              </span>
+            </a>
+          </div>
+          <p className="mt-6 flex items-center gap-2 text-sm text-ink-muted">
+            <MapPin className="size-4 shrink-0 text-brand-600" strokeWidth={1.9} aria-hidden="true" />
+            Cotonou, Bénin — joignable aussi via WhatsApp sur le numéro ci-dessus.
+          </p>
+        </div>
       </section>
     </>
   );
